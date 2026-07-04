@@ -1,125 +1,174 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<androidx.constraintlayout.widget.ConstraintLayout
-    android:id="@+id/main"
+<androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp"
-    tools:context=".activities.MainActivity"
-    >
+    android:fillViewport="true"
+    android:background="?attr/colorSurface"
+    android:fitsSystemWindows="true">
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="Rename Utility"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:padding="24dp"
+        tools:context=".activities.MainActivity">
 
-    <TextView
-        android:id="@+id/tvSubtitle"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Renombra extensiones de archivos. No convierte archivos."
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvTitle"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilSearchExtension"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:hint="Extensión a buscar"
-        app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etSearchExtension"
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text=".CR3"/>
+            android:text="Rename Utility"
+            android:textAppearance="?attr/textAppearanceHeadlineLarge"
+            android:textColor="?attr/colorPrimary"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    </com.google.android.material.textfield.TextInputLayout>
-
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilNewExtension"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="Nueva extensión"
-        app:layout_constraintTop_toBottomOf="@id/tilSearchExtension"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etNewExtension"
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text=".CR2"/>
+            android:layout_marginTop="8dp"
+            android:text="Renombra archivos de forma masiva."
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle" />
 
-    </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardExtensions"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+            app:cardCornerRadius="24dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvSubtitle">
 
-    <TextView
-        android:id="@+id/tvFolderLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
-        android:text="Carpeta seleccionada"
-        android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@id/tilNewExtension"
-        app:layout_constraintStart_toStartOf="parent"/>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
 
-    <TextView
-        android:id="@+id/tvFolderPath"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="Ninguna carpeta seleccionada"
-        android:textColor="#666666"
-        app:layout_constraintTop_toBottomOf="@id/tvFolderLabel"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilSearchExtension"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Extensión actual">
 
-    <TextView
-        android:id="@+id/tvCount"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Archivos: 0"
-        app:layout_constraintTop_toBottomOf="@id/tvFolderPath"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etSearchExtension"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text=".CR3" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnSelectFolder"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="36dp"
-        android:text="Seleccionar carpeta"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvFolderPath" />
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilNewExtension"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="Nueva extensión">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnSearch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Renombrar archivos"
-        app:layout_constraintTop_toBottomOf="@id/btnSelectFolder"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etNewExtension"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text=".CR2" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardFolder"
+            style="?attr/materialCardViewElevatedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="2dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cardExtensions">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="24dp">
+
+                <TextView
+                    android:id="@+id/tvFolderLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Carpeta de trabajo"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:textColor="?attr/colorOnSurface"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tvFolderPath"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Ninguna carpeta seleccionada"
+                    android:textAppearance="?attr/textAppearanceBodyMedium"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tvFolderLabel" />
+
+                <TextView
+                    android:id="@+id/tvCount"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Archivos: 0"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorPrimary"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tvFolderPath" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSelectFolder"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Cambiar carpeta"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tvCount" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSearch"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="16dp"
+            android:text="Renombrar archivos"
+            android:textSize="18sp"
+            app:cornerRadius="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cardFolder"
+            app:layout_constraintVertical_bias="1.0" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>

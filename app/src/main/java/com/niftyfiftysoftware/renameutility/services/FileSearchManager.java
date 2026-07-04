@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.niftyfiftysoftware.renameutility.interfaces.SearchCallback;
+import com.niftyfiftysoftware.renameutility.interfaces.RenameCallback;
 import com.niftyfiftysoftware.renameutility.utils.FileUtils;
 
 import java.util.concurrent.ExecutorService;
@@ -23,16 +24,30 @@ public class FileSearchManager {
 
     public void startSearch(Context context, Uri folderUri, String query, SearchCallback callback) {
         cancelSearch();
-
         Handler handler = new Handler(Looper.getMainLooper());
-
         searchFuture = executorService.submit(() -> {
             int total = FileUtils.startFastSearch(context, folderUri, query);
-
             if (!Thread.currentThread().isInterrupted()) {
                 handler.post(() -> callback.onSearchComplete(total));
             } else {
                 handler.post(callback::onSearchCancelled);
+            }
+        });
+    }
+
+    public void startRename(Context context, Uri folderUri, String query, String newExt, RenameCallback callback) {
+        cancelSearch();
+        Handler handler = new Handler(Looper.getMainLooper());
+        searchFuture = executorService.submit(() -> {
+            try {
+                int totalRenamed = FileUtils.renameFilesFast(context, folderUri, query, newExt);
+                if (!Thread.currentThread().isInterrupted()) {
+                    handler.post(() -> callback.onRenameComplete(totalRenamed));
+                } else {
+                    handler.post(callback::onRenameCancelled);
+                }
+            } catch (Exception e) {
+                handler.post(() -> callback.onRenameError(e.getMessage()));
             }
         });
     }

@@ -19,6 +19,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.niftyfiftysoftware.renameutility.R;
 import com.niftyfiftysoftware.renameutility.dialogs.LoadingDialog;
 import com.niftyfiftysoftware.renameutility.interfaces.SearchCallback;
+import com.niftyfiftysoftware.renameutility.interfaces.RenameCallback;
 import com.niftyfiftysoftware.renameutility.services.FileSearchManager;
 
 public class MainActivity extends AppCompatActivity {
@@ -28,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvFolderPath;
     private TextView tvCount;
     private TextInputEditText etSearchExtension;
+    private TextInputEditText etNewExtension;
+    private Button btnSearch;
 
     private ActivityResultLauncher<Uri> folderPickerLauncher;
     private FileSearchManager fileSearchManager;
@@ -42,9 +45,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Button btnSelectFolder = findViewById(R.id.btnSelectFolder);
+        btnSearch = findViewById(R.id.btnSearch);
         tvFolderPath = findViewById(R.id.tvFolderPath);
         tvCount = findViewById(R.id.tvCount);
         etSearchExtension = findViewById(R.id.etSearchExtension);
+        etNewExtension = findViewById(R.id.etNewExtension);
 
         fileSearchManager = new FileSearchManager();
 
@@ -52,7 +57,6 @@ public class MainActivity extends AppCompatActivity {
                 new ActivityResultContracts.OpenDocumentTree(),
                 uri -> {
                     if (uri == null) {
-                        if (rootFolder == null) mostrarDialogoPermiso();
                         return;
                     }
 
@@ -80,6 +84,56 @@ public class MainActivity extends AppCompatActivity {
 
         btnSelectFolder.setOnClickListener(v -> folderPickerLauncher.launch(null));
 
+        btnSearch.setOnClickListener(v -> {
+            if (rootFolder == null) {
+                tvCount.setText("Selecciona una carpeta primero");
+                return;
+            }
+
+            String oldExt = etSearchExtension.getText() != null ? etSearchExtension.getText().toString().trim() : "";
+            String newExt = etNewExtension.getText() != null ? etNewExtension.getText().toString().trim() : "";
+
+            if (oldExt.isEmpty() || newExt.isEmpty()) {
+                tvCount.setText("Llena ambas extensiones");
+                return;
+            }
+
+            btnSearch.setEnabled(false);
+            btnSearch.setText("Procesando...");
+
+            fileSearchManager.startRename(this, selectedFolderUri, oldExt, newExt, new RenameCallback() {
+                @Override
+                public void onRenameComplete(int totalRenamed) {
+                    btnSearch.setEnabled(true);
+                    btnSearch.setText("Renombrar archivos");
+                    new MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle("Renombrado exitoso")
+                            .setMessage("Se renombraron " + totalRenamed + " archivos.")
+                            .setPositiveButton("OK", null)
+                            .show();
+                    iniciarBusquedaAutomatica();
+                }
+
+                @Override
+                public void onRenameCancelled() {
+                    btnSearch.setEnabled(true);
+                    btnSearch.setText("Renombrar archivos");
+                    tvCount.setText("Proceso cancelado");
+                }
+
+                @Override
+                public void onRenameError(String message) {
+                    btnSearch.setEnabled(true);
+                    btnSearch.setText("Renombrar archivos");
+                    new MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle("Error")
+                            .setMessage("Hubo un problema al renombrar: " + message)
+                            .setPositiveButton("OK", null)
+                            .show();
+                }
+            });
+        });
+
         verificarCarpetaGuardada();
     }
 
@@ -105,22 +159,6 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
         }
-        mostrarDialogoPermiso();
-    }
-
-    private void mostrarDialogoPermiso() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Permiso requerido")
-                .setMessage("Para renombrar y buscar archivos, necesitas seleccionar una carpeta y dar permisos de acceso.")
-                .setCancelable(false)
-                .setNegativeButton("Cancelar", (dialog, which) -> {
-                    tvFolderPath.setText("Ninguna carpeta seleccionada");
-                    tvCount.setText("Archivos: 0");
-                })
-                .setPositiveButton("Permitir", (dialog, which) -> {
-                    folderPickerLauncher.launch(null);
-                })
-                .show();
     }
 
     private void actualizarTextoRuta(Uri uri) {
@@ -146,6 +184,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onSearchComplete(int totalFiles) {
                 loadingDialog.dismiss();
+                new MaterialAlertDialogBuilder(MainActivity.this)
+                        .setTitle("Escaneo terminado")
+                        .setMessage("Se encontraron " + totalFiles + " archivos que coinciden con '" + ext + "'.")
+                        .setPositiveButton("OK", null)
+                        .show();
                 tvCount.setText("Archivos: " + totalFiles);
             }
 

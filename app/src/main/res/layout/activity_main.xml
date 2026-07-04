@@ -51,7 +51,6 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Nueva extensión -->
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/tilNewExtension"
@@ -118,7 +117,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Buscar archivos"
+        android:text="Renombrar archivos"
         app:layout_constraintTop_toBottomOf="@id/btnSelectFolder"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>

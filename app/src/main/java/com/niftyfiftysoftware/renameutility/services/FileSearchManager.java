@@ -40,7 +40,7 @@ public class FileSearchManager {
         Handler handler = new Handler(Looper.getMainLooper());
         searchFuture = executorService.submit(() -> {
             try {
-                int totalRenamed = FileUtils.renameFilesFast(context, folderUri, query, newExt);
+                int totalRenamed = FileUtils.renameFilesFast(context, folderUri, query, newExt, callback, handler);
                 if (!Thread.currentThread().isInterrupted()) {
                     handler.post(() -> callback.onRenameComplete(totalRenamed));
                 } else {

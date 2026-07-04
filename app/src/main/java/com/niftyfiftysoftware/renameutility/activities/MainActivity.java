@@ -1,26 +1,34 @@
 package com.niftyfiftysoftware.renameutility.activities;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.UriPermission;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.textfield.TextInputEditText;
 import com.niftyfiftysoftware.renameutility.R;
 import com.niftyfiftysoftware.renameutility.dialogs.LoadingDialog;
 import com.niftyfiftysoftware.renameutility.interfaces.SearchCallback;
-import com.niftyfiftysoftware.renameutility.interfaces.RenameCallback;
 import com.niftyfiftysoftware.renameutility.services.FileSearchManager;
+import com.niftyfiftysoftware.renameutility.services.RenameService;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -33,7 +41,12 @@ public class MainActivity extends AppCompatActivity {
     private Button btnSearch;
 
     private ActivityResultLauncher<Uri> folderPickerLauncher;
+    private ActivityResultLauncher<String> requestPermissionLauncher;
     private FileSearchManager fileSearchManager;
+
+    private BroadcastReceiver renameReceiver;
+    private AlertDialog currentProgressDialog;
+    private LinearProgressIndicator currentProgressBar;
 
     private static final String PREF_URI = "carpeta_guardada_uri";
 
@@ -53,13 +66,18 @@ public class MainActivity extends AppCompatActivity {
 
         fileSearchManager = new FileSearchManager();
 
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {}
+        );
+
+        pedirPermisoNotificaciones();
+        configurarReceiver();
+
         folderPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.OpenDocumentTree(),
                 uri -> {
-                    if (uri == null) {
-                        return;
-                    }
-
+                    if (uri == null) return;
                     selectedFolderUri = uri;
 
                     try {
@@ -67,10 +85,8 @@ public class MainActivity extends AppCompatActivity {
                                 uri,
                                 Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                         );
-
                         SharedPreferences prefs = getSharedPreferences("MisPreferencias", MODE_PRIVATE);
                         prefs.edit().putString(PREF_URI, uri.toString()).apply();
-
                     } catch (Exception ignored) {
                         tvFolderPath.setText("Sin permiso");
                         return;
@@ -78,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
 
                     rootFolder = DocumentFile.fromTreeUri(this, uri);
                     actualizarTextoRuta(uri);
-                    iniciarBusquedaAutomatica();
+                    iniciarBusquedaAutomatica(true);
                 }
         );
 
@@ -98,43 +114,96 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            btnSearch.setEnabled(false);
-            btnSearch.setText("Procesando...");
+            if (oldExt.equalsIgnoreCase(newExt)) {
+                tvCount.setText("Las extensiones no pueden ser iguales");
+                return;
+            }
 
-            fileSearchManager.startRename(this, selectedFolderUri, oldExt, newExt, new RenameCallback() {
-                @Override
-                public void onRenameComplete(int totalRenamed) {
-                    btnSearch.setEnabled(true);
-                    btnSearch.setText("Renombrar archivos");
-                    new MaterialAlertDialogBuilder(MainActivity.this)
-                            .setTitle("Renombrado exitoso")
-                            .setMessage("Se renombraron " + totalRenamed + " archivos.")
-                            .setPositiveButton("OK", null)
-                            .show();
-                    iniciarBusquedaAutomatica();
-                }
-
-                @Override
-                public void onRenameCancelled() {
-                    btnSearch.setEnabled(true);
-                    btnSearch.setText("Renombrar archivos");
-                    tvCount.setText("Proceso cancelado");
-                }
-
-                @Override
-                public void onRenameError(String message) {
-                    btnSearch.setEnabled(true);
-                    btnSearch.setText("Renombrar archivos");
-                    new MaterialAlertDialogBuilder(MainActivity.this)
-                            .setTitle("Error")
-                            .setMessage("Hubo un problema al renombrar: " + message)
-                            .setPositiveButton("OK", null)
-                            .show();
-                }
-            });
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Confirmar renombrado")
+                    .setMessage("¿Estás seguro de que quieres renombrar los archivos que coincidan con '" + oldExt + "' a '" + newExt + "'?")
+                    .setPositiveButton("Renombrar", (dialog, which) -> iniciarRenombrado(oldExt, newExt))
+                    .setNegativeButton("Cancelar", null)
+                    .show();
         });
 
         verificarCarpetaGuardada();
+    }
+
+    private void configurarReceiver() {
+        renameReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String status = intent.getStringExtra("status");
+                if (status == null) return;
+
+                switch (status) {
+                    case "progress":
+                        int current = intent.getIntExtra("current", 0);
+                        int total = intent.getIntExtra("total", 0);
+                        if (currentProgressDialog != null && currentProgressDialog.isShowing()) {
+                            if (currentProgressBar.isIndeterminate()) {
+                                currentProgressBar.setIndeterminate(false);
+                                currentProgressBar.setMax(total);
+                            }
+                            currentProgressBar.setProgressCompat(current, true);
+                            currentProgressDialog.setMessage("Renombrando: " + current + " de " + total);
+                        }
+                        break;
+                    case "complete":
+                        int totalRenamed = intent.getIntExtra("total", 0);
+                        if (currentProgressDialog != null) currentProgressDialog.dismiss();
+                        btnSearch.setEnabled(true);
+                        btnSearch.setText("Renombrar archivos");
+                        new MaterialAlertDialogBuilder(MainActivity.this)
+                                .setTitle("Renombrado exitoso")
+                                .setMessage("Se renombraron " + totalRenamed + " archivos.")
+                                .setPositiveButton("OK", null)
+                                .show();
+                        iniciarBusquedaAutomatica(false);
+                        break;
+                    case "error":
+                        String message = intent.getStringExtra("message");
+                        if (currentProgressDialog != null) currentProgressDialog.dismiss();
+                        btnSearch.setEnabled(true);
+                        btnSearch.setText("Renombrar archivos");
+                        new MaterialAlertDialogBuilder(MainActivity.this)
+                                .setTitle("Error")
+                                .setMessage(message)
+                                .setPositiveButton("OK", null)
+                                .show();
+                        break;
+                }
+            }
+        };
+    }
+
+    private void iniciarRenombrado(String oldExt, String newExt) {
+        btnSearch.setEnabled(false);
+        btnSearch.setText("Procesando...");
+
+        currentProgressBar = new LinearProgressIndicator(this);
+        currentProgressBar.setIndeterminate(true);
+
+        FrameLayout frameLayout = new FrameLayout(this);
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        frameLayout.setPadding(padding, padding, padding, padding);
+        frameLayout.addView(currentProgressBar);
+
+        currentProgressDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Renombrando archivos")
+                .setMessage("Iniciando...")
+                .setView(frameLayout)
+                .setCancelable(false)
+                .create();
+
+        currentProgressDialog.show();
+
+        Intent serviceIntent = new Intent(this, RenameService.class);
+        serviceIntent.putExtra("folderUri", selectedFolderUri.toString());
+        serviceIntent.putExtra("oldExt", oldExt);
+        serviceIntent.putExtra("newExt", newExt);
+        ContextCompat.startForegroundService(this, serviceIntent);
     }
 
     private void verificarCarpetaGuardada() {
@@ -156,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
                 selectedFolderUri = uriGuardada;
                 rootFolder = DocumentFile.fromTreeUri(this, uriGuardada);
                 actualizarTextoRuta(uriGuardada);
-                return;
+                iniciarBusquedaAutomatica(false);
             }
         }
     }
@@ -169,7 +238,7 @@ public class MainActivity extends AppCompatActivity {
         tvFolderPath.setText(displayPath != null ? displayPath : rootFolder.getName());
     }
 
-    private void iniciarBusquedaAutomatica() {
+    private void iniciarBusquedaAutomatica(boolean mostrarPopup) {
         String ext = etSearchExtension.getText() != null ? etSearchExtension.getText().toString().trim() : "";
         if (ext.isEmpty()) {
             tvCount.setText("Ingresa una palabra o extensión");
@@ -177,18 +246,19 @@ public class MainActivity extends AppCompatActivity {
         }
 
         LoadingDialog loadingDialog = new LoadingDialog();
-
         loadingDialog.show(this, () -> fileSearchManager.cancelSearch());
 
         fileSearchManager.startSearch(this, selectedFolderUri, ext, new SearchCallback() {
             @Override
             public void onSearchComplete(int totalFiles) {
                 loadingDialog.dismiss();
-                new MaterialAlertDialogBuilder(MainActivity.this)
-                        .setTitle("Escaneo terminado")
-                        .setMessage("Se encontraron " + totalFiles + " archivos que coinciden con '" + ext + "'.")
-                        .setPositiveButton("OK", null)
-                        .show();
+                if (mostrarPopup) {
+                    new MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle("Escaneo terminado")
+                            .setMessage("Se encontraron " + totalFiles + " archivos que coinciden con '" + ext + "'.")
+                            .setPositiveButton("OK", null)
+                            .show();
+                }
                 tvCount.setText("Archivos: " + totalFiles);
             }
 
@@ -197,6 +267,31 @@ public class MainActivity extends AppCompatActivity {
                 tvCount.setText("Búsqueda cancelada");
             }
         });
+    }
+
+    private void pedirPermisoNotificaciones() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        androidx.core.content.ContextCompat.registerReceiver(
+                this,
+                renameReceiver,
+                new IntentFilter("RENAME_UPDATE"),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        );
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unregisterReceiver(renameReceiver);
     }
 
     @Override

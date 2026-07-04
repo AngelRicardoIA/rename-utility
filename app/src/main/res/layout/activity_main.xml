@@ -92,15 +92,26 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <TextView
+        android:id="@+id/tvCount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Archivos: 0"
+        app:layout_constraintTop_toBottomOf="@id/tvFolderPath"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSelectFolder"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="36dp"
         android:text="Seleccionar carpeta"
-        app:layout_constraintTop_toBottomOf="@id/tvFolderPath"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintTop_toBottomOf="@id/tvFolderPath" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSearch"

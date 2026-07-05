@@ -30,12 +30,15 @@ import com.niftyfiftysoftware.renameutility.interfaces.SearchCallback;
 import com.niftyfiftysoftware.renameutility.services.FileSearchManager;
 import com.niftyfiftysoftware.renameutility.services.RenameService;
 
+import java.util.ArrayList;
+
 public class MainActivity extends AppCompatActivity {
 
     private Uri selectedFolderUri;
     private DocumentFile rootFolder;
     private TextView tvFolderPath;
     private TextView tvCount;
+    private TextInputEditText etPrefix;
     private TextInputEditText etSearchExtension;
     private TextInputEditText etNewExtension;
     private Button btnSearch;
@@ -61,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
         btnSearch = findViewById(R.id.btnSearch);
         tvFolderPath = findViewById(R.id.tvFolderPath);
         tvCount = findViewById(R.id.tvCount);
+        etPrefix = findViewById(R.id.etPrefix);
         etSearchExtension = findViewById(R.id.etSearchExtension);
         etNewExtension = findViewById(R.id.etNewExtension);
 
@@ -108,6 +112,7 @@ public class MainActivity extends AppCompatActivity {
 
             String oldExt = etSearchExtension.getText() != null ? etSearchExtension.getText().toString().trim() : "";
             String newExt = etNewExtension.getText() != null ? etNewExtension.getText().toString().trim() : "";
+            String prefix = etPrefix.getText() != null ? etPrefix.getText().toString().trim() : "";
 
             if (oldExt.isEmpty() || newExt.isEmpty()) {
                 tvCount.setText("Llena ambas extensiones");
@@ -122,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
             new MaterialAlertDialogBuilder(this)
                     .setTitle("Confirmar renombrado")
                     .setMessage("¿Estás seguro de que quieres renombrar los archivos que coincidan con '" + oldExt + "' a '" + newExt + "'?")
-                    .setPositiveButton("Renombrar", (dialog, which) -> iniciarRenombrado(oldExt, newExt))
+                    .setPositiveButton("Renombrar", (dialog, which) -> iniciarRenombrado(oldExt, newExt, prefix))
                     .setNegativeButton("Cancelar", null)
                     .show();
         });
@@ -152,14 +157,35 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     case "complete":
                         int totalRenamed = intent.getIntExtra("total", 0);
+                        ArrayList<String> failedFiles = intent.getStringArrayListExtra("failed");
                         if (currentProgressDialog != null) currentProgressDialog.dismiss();
                         btnSearch.setEnabled(true);
                         btnSearch.setText("Renombrar archivos");
-                        new MaterialAlertDialogBuilder(MainActivity.this)
-                                .setTitle("Renombrado exitoso")
+
+                        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(MainActivity.this)
+                                .setTitle("Renombrado finalizado")
                                 .setMessage("Se renombraron " + totalRenamed + " archivos.")
-                                .setPositiveButton("OK", null)
-                                .show();
+                                .setPositiveButton("OK", null);
+
+                        if (failedFiles != null && !failedFiles.isEmpty()) {
+                            builder.setNeutralButton("Ver Errores", (dialog, which) -> {
+                                String erroresStr = String.join("\n", failedFiles);
+                                new MaterialAlertDialogBuilder(MainActivity.this)
+                                        .setTitle("Archivos fallidos (" + failedFiles.size() + ")")
+                                        .setMessage(erroresStr)
+                                        .setPositiveButton("Cerrar", null)
+                                        .show();
+                            });
+                        }
+
+                        builder.show();
+                        iniciarBusquedaAutomatica(false);
+                        break;
+                    case "cancelled":
+                        if (currentProgressDialog != null) currentProgressDialog.dismiss();
+                        btnSearch.setEnabled(true);
+                        btnSearch.setText("Renombrar archivos");
+                        tvCount.setText("Proceso cancelado por el usuario.");
                         iniciarBusquedaAutomatica(false);
                         break;
                     case "error":
@@ -178,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
         };
     }
 
-    private void iniciarRenombrado(String oldExt, String newExt) {
+    private void iniciarRenombrado(String oldExt, String newExt, String prefix) {
         btnSearch.setEnabled(false);
         btnSearch.setText("Procesando...");
 
@@ -195,6 +221,11 @@ public class MainActivity extends AppCompatActivity {
                 .setMessage("Iniciando...")
                 .setView(frameLayout)
                 .setCancelable(false)
+                .setNegativeButton("Cancelar", (dialog, which) -> {
+                    Intent cancelIntent = new Intent(this, RenameService.class);
+                    cancelIntent.setAction(RenameService.ACTION_CANCEL);
+                    startService(cancelIntent);
+                })
                 .create();
 
         currentProgressDialog.show();
@@ -203,6 +234,7 @@ public class MainActivity extends AppCompatActivity {
         serviceIntent.putExtra("folderUri", selectedFolderUri.toString());
         serviceIntent.putExtra("oldExt", oldExt);
         serviceIntent.putExtra("newExt", newExt);
+        serviceIntent.putExtra("prefix", prefix);
         ContextCompat.startForegroundService(this, serviceIntent);
     }
 
@@ -286,6 +318,24 @@ public class MainActivity extends AppCompatActivity {
                 new IntentFilter("RENAME_UPDATE"),
                 androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         );
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (currentProgressDialog != null && currentProgressDialog.isShowing() && !RenameService.isRunning) {
+            currentProgressDialog.dismiss();
+            btnSearch.setEnabled(true);
+            btnSearch.setText("Renombrar archivos");
+
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Proceso finalizado en segundo plano")
+                    .setMessage("El renombrado concluyó mientras estabas fuera de la app.")
+                    .setPositiveButton("OK", null)
+                    .show();
+
+            iniciarBusquedaAutomatica(false);
+        }
     }
 
     @Override

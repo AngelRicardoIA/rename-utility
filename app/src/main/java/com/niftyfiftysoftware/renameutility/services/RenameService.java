@@ -17,15 +17,21 @@ import com.niftyfiftysoftware.renameutility.R;
 import com.niftyfiftysoftware.renameutility.interfaces.RenameCallback;
 import com.niftyfiftysoftware.renameutility.utils.FileUtils;
 
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class RenameService extends Service {
 
+    public static final String ACTION_CANCEL = "com.niftyfiftysoftware.ACTION_CANCEL";
     private static final String CHANNEL_ID = "RenameServiceChannel";
+    public static boolean isRunning = false;
+
     private NotificationManager notificationManager;
     private NotificationCompat.Builder notificationBuilder;
     private ExecutorService executorService;
+    private Future<?> renameTask;
 
     @Override
     public void onCreate() {
@@ -39,15 +45,24 @@ public class RenameService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) return START_NOT_STICKY;
 
+        if (ACTION_CANCEL.equals(intent.getAction())) {
+            if (renameTask != null && !renameTask.isDone()) {
+                renameTask.cancel(true);
+            }
+            return START_NOT_STICKY;
+        }
+
         String uriString = intent.getStringExtra("folderUri");
         String oldExt = intent.getStringExtra("oldExt");
         String newExt = intent.getStringExtra("newExt");
+        String prefix = intent.getStringExtra("prefix");
 
         if (uriString == null || oldExt == null || newExt == null) {
             stopSelf();
             return START_NOT_STICKY;
         }
 
+        isRunning = true;
         Uri folderUri = Uri.parse(uriString);
 
         notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -62,9 +77,9 @@ public class RenameService extends Service {
 
         Handler handler = new Handler(Looper.getMainLooper());
 
-        executorService.execute(() -> {
+        renameTask = executorService.submit(() -> {
             try {
-                int totalRenamed = FileUtils.renameFilesFast(this, folderUri, oldExt, newExt, new RenameCallback() {
+                FileUtils.renameFilesFast(this, folderUri, oldExt, newExt, prefix, new RenameCallback() {
                     @Override
                     public void onRenameProgress(int current, int total) {
                         notificationBuilder.setProgress(total, current, false);
@@ -80,21 +95,35 @@ public class RenameService extends Service {
                     }
 
                     @Override
-                    public void onRenameComplete(int totalRenamed) {}
-                    @Override
-                    public void onRenameCancelled() {}
-                    @Override
-                    public void onRenameError(String message) {}
-                }, handler);
+                    public void onRenameComplete(int totalRenamed, ArrayList<String> failedFiles) {
+                        terminarServicio("Éxito", "Se renombraron " + totalRenamed + " archivos.");
+                        Intent completeIntent = new Intent("RENAME_UPDATE");
+                        completeIntent.setPackage(getPackageName());
+                        completeIntent.putExtra("status", "complete");
+                        completeIntent.putExtra("total", totalRenamed);
+                        completeIntent.putStringArrayListExtra("failed", failedFiles);
+                        sendBroadcast(completeIntent);
+                    }
 
-                handler.post(() -> {
-                    terminarServicio("Éxito", "Se renombraron " + totalRenamed + " archivos.");
-                    Intent completeIntent = new Intent("RENAME_UPDATE");
-                    completeIntent.setPackage(getPackageName());
-                    completeIntent.putExtra("status", "complete");
-                    completeIntent.putExtra("total", totalRenamed);
-                    sendBroadcast(completeIntent);
-                });
+                    @Override
+                    public void onRenameCancelled() {
+                        terminarServicio("Cancelado", "El proceso fue detenido.");
+                        Intent cancelIntent = new Intent("RENAME_UPDATE");
+                        cancelIntent.setPackage(getPackageName());
+                        cancelIntent.putExtra("status", "cancelled");
+                        sendBroadcast(cancelIntent);
+                    }
+
+                    @Override
+                    public void onRenameError(String message) {
+                        terminarServicio("Error", message);
+                        Intent errorIntent = new Intent("RENAME_UPDATE");
+                        errorIntent.setPackage(getPackageName());
+                        errorIntent.putExtra("status", "error");
+                        errorIntent.putExtra("message", message);
+                        sendBroadcast(errorIntent);
+                    }
+                }, handler);
 
             } catch (Exception e) {
                 handler.post(() -> {
@@ -112,6 +141,7 @@ public class RenameService extends Service {
     }
 
     private void terminarServicio(String titulo, String mensaje) {
+        isRunning = false;
         Notification finalNotification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(titulo)
                 .setContentText(mensaje)
@@ -146,6 +176,7 @@ public class RenameService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        isRunning = false;
         if (executorService != null) {
             executorService.shutdownNow();
         }
